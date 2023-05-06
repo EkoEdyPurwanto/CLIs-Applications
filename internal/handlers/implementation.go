@@ -4,8 +4,12 @@ import (
 	"MiniProjRamadh/internal/database"
 	"MiniProjRamadh/internal/models"
 	"fmt"
+	"github.com/PuerkitoBio/goquery"
+	"github.com/go-co-op/gocron"
 	"github.com/manifoldco/promptui"
 	_ "github.com/spf13/cobra"
+	"log"
+	"net/http"
 	"time"
 )
 
@@ -179,4 +183,86 @@ func (handler *WikiHandlerImpl) GetWiki() error {
 	}
 
 	return nil
+}
+
+func (handler *WikiHandlerImpl) StartWorker() error {
+	// create a new scheduler
+	scheduler := gocron.NewScheduler(time.Local)
+
+	// add a new job that runs every minute
+	scheduler.Every(1).Minute().Do(handler.UpdateDesc)
+
+	// start the scheduler
+	scheduler.StartBlocking()
+
+	return nil
+}
+
+func (handler *WikiHandlerImpl) UpdateDesc() {
+	db, err := database.ConnectDB(handler.cfg)
+	if err != nil {
+		log.Printf("failed to connect to database: %v", err)
+		return
+	}
+	defer db.Close()
+
+	rows, err := db.Query(`
+        SELECT id, topic
+        FROM wikis
+        WHERE description IS NULL OR description = ''
+    `)
+	if err != nil {
+		log.Printf("failed to query wikis: %v", err)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			id    int
+			topic string
+		)
+		err := rows.Scan(&id, &topic)
+		if err != nil {
+			log.Printf("failed to scan row: %v", err)
+			continue
+		}
+
+		go func(id int, topic string) {
+			resp, err := http.Get(fmt.Sprintf("https://en.wikipedia.org/wiki/%s", topic))
+			if err != nil {
+				log.Printf("failed to fetch %s: %v", topic, err)
+				return
+			}
+			defer resp.Body.Close()
+
+			doc, err := goquery.NewDocumentFromReader(resp.Body)
+			if err != nil {
+				log.Printf("failed to parse HTML: %v", err)
+				return
+			}
+
+			// get the first paragraph of the page
+			firstParagraph := doc.Find("div#mw-content-text p").First().Text()
+
+			stmt, err := db.Prepare(`
+                UPDATE wikis
+                SET description = $1, updated_at = $2
+                WHERE id = $3
+            `)
+			if err != nil {
+				log.Printf("failed to prepare statement: %v", err)
+				return
+			}
+			defer stmt.Close()
+
+			_, err = stmt.Exec(firstParagraph, time.Now(), id)
+			if err != nil {
+				log.Printf("failed to update wiki: %v", err)
+				return
+			}
+
+			log.Printf("updated wiki %d with description: %s", id, firstParagraph)
+		}(id, topic)
+	}
 }
