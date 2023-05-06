@@ -65,11 +65,20 @@ var getCmd = &cobra.Command{
 	},
 }
 
+var workerCmd = &cobra.Command{
+	Use: "worker",
+	Run: func(cmd *cobra.Command, args []string) {
+		handler := handlers.NewWikiHandlerImpl(cfg)
+		handler.StartWorker()
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(updateCmd)
 	rootCmd.AddCommand(deleteCmd)
 	rootCmd.AddCommand(getCmd)
+	rootCmd.AddCommand(workerCmd)
 }
 
 func main() {
