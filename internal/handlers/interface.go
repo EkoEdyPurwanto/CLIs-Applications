@@ -5,4 +5,6 @@ type WikisHandlers interface {
 	UpdateWiki() error
 	DeleteWiki() error
 	GetWiki() error
+	StartWorker() error
+	UpdateDescWorker() error
 }
