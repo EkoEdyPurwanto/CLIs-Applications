@@ -286,6 +286,9 @@ func (handler *WikiHandlerImpl) UpdateDescWorker() error {
 				log.Printf("failed to execute statement: %v", err)
 				return
 			}
+
+			// Notification for a successful update
+			log.Printf("Wiki with ID %d and topic %s has been updated.", id, topic)
 		}(wiki.ID, wiki.Topic)
 	}
 
