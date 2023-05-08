@@ -153,7 +153,7 @@ func (handler *WikiHandlerImpl) GetWiki() error {
 	defer db.Close()
 
 	rows, err := db.Query(`
-    SELECT id, topic, /*description,*/ created_at, updated_at
+    SELECT id, topic, description, created_at, updated_at
     FROM wikis
 `)
 	if err != nil {
@@ -162,23 +162,17 @@ func (handler *WikiHandlerImpl) GetWiki() error {
 	defer rows.Close()
 
 	for rows.Next() {
-		var (
-			id    int
-			topic string
-			//description string
-			createdAt time.Time
-			updatedAt time.Time
-		)
-		err := rows.Scan(&id, &topic /*&description,*/, &createdAt, &updatedAt)
+		var wiki models.Wiki
+		err := rows.Scan(&wiki.ID, &wiki.Topic, &wiki.Description, &wiki.CreatedAt, &wiki.UpdatedAt)
 		if err != nil {
 			return err
 		}
 
-		fmt.Printf("ID: %d\n", id)
-		fmt.Printf("Topic: %s\n", topic)
-		//fmt.Printf("Description: %s\n", description)
-		fmt.Printf("Created At: %s\n", createdAt.Format("2006-01-02 15:04:05"))
-		fmt.Printf("Updated At: %s\n", updatedAt.Format("2006-01-02 15:04:05"))
+		fmt.Printf("ID: %d\n", wiki.ID)
+		fmt.Printf("Topic: %s\n", wiki.Topic)
+		fmt.Printf("Description: %s\n", wiki.Description)
+		fmt.Printf("Created At: %s\n", wiki.CreatedAt.Format("2006-01-02 15:04:05"))
+		fmt.Printf("Updated At: %s\n", wiki.UpdatedAt.Format("2006-01-02 15:04:05"))
 		fmt.Println()
 	}
 
@@ -234,11 +228,8 @@ func (handler *WikiHandlerImpl) UpdateDescWorker() error {
 
 	// Concurrently update each wiki's description
 	for rows.Next() {
-		var (
-			id    int
-			topic string
-		)
-		err := rows.Scan(&id, &topic)
+		var wiki models.Wiki
+		err := rows.Scan(&wiki.ID, &wiki.Topic)
 		if err != nil {
 			log.Printf("failed to scan row: %v", err)
 			continue
@@ -295,7 +286,7 @@ func (handler *WikiHandlerImpl) UpdateDescWorker() error {
 				log.Printf("failed to execute statement: %v", err)
 				return
 			}
-		}(id, topic)
+		}(wiki.ID, wiki.Topic)
 	}
 
 	// Wait for all the goroutines to complete
