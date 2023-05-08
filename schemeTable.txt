@@ -5,3 +5,21 @@ CREATE TABLE wikis (
   created_at TIMESTAMP NOT NULL,
   updated_at TIMESTAMP NOT NULL
 );
+
+
+
+INSERT INTO wikis (topic, created_at, updated_at)
+VALUES
+('merah', NOW(), NOW()),
+('jingga', NOW(), NOW()),
+('kuning', NOW(), NOW()),
+('hijau', NOW(), NOW()),
+('biru', NOW(), NOW()),
+('nila', NOW(), NOW()),
+('ungu', NOW(), NOW()),
+('hitam', NOW(), NOW()),
+('putih', NOW(), NOW()),
+('abu-abu', NOW(), NOW()),
+('cokelat', NOW(), NOW()),
+('pink', NOW(), NOW()),
+('jingga', NOW(), NOW());
