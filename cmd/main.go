@@ -10,11 +10,11 @@ import (
 
 var cfg = &models.Config{
 	DBDriver: "postgres",
-	DBHost:   "localhost",
-	DBPort:   5432,
 	DBUser:   "postgres",
 	DBPass:   "1903",
 	DBName:   "CLI_Wikis",
+	DBHost:   "localhost",
+	DBPort:   5432,
 }
 
 var rootCmd = &cobra.Command{
@@ -69,7 +69,10 @@ var workerCmd = &cobra.Command{
 	Use: "worker",
 	Run: func(cmd *cobra.Command, args []string) {
 		handler := handlers.NewWikiHandlerImpl(cfg)
-		handler.StartWorker()
+		err := handler.StartWorker()
+		if err != nil {
+			log.Fatal(err)
+		}
 	},
 }
 

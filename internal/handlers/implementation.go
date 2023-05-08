@@ -186,37 +186,53 @@ func (handler *WikiHandlerImpl) GetWiki() error {
 }
 
 func (handler *WikiHandlerImpl) StartWorker() error {
-	// create a new scheduler
-	scheduler := gocron.NewScheduler(time.Local)
+	// Create a new scheduler
+	s := gocron.NewScheduler(time.UTC)
 
-	// add a new job that runs every minute
-	scheduler.Every(1).Minute().Do(handler.UpdateDesc)
+	// Schedule the job to run every minute
+	_, err := s.Every(1).Minute().Do(handler.UpdateDescWorker)
+	if err != nil {
+		return err
+	}
 
-	// start the scheduler
-	scheduler.StartBlocking()
+	// Start the scheduler in the background
+	s.StartAsync()
+
+	// Wait for the scheduler to stop
+	defer s.Stop()
+
+	// Wait indefinitely
+	select {}
 
 	return nil
 }
 
-func (handler *WikiHandlerImpl) UpdateDesc() {
+func (handler *WikiHandlerImpl) UpdateDescWorker() error {
+	// Connect to the database
 	db, err := database.ConnectDB(handler.cfg)
 	if err != nil {
-		log.Printf("failed to connect to database: %v", err)
-		return
+		return err
 	}
 	defer db.Close()
 
+	// Query all wikis that have a null or empty description
 	rows, err := db.Query(`
         SELECT id, topic
         FROM wikis
         WHERE description IS NULL OR description = ''
     `)
 	if err != nil {
-		log.Printf("failed to query wikis: %v", err)
-		return
+		return err
 	}
 	defer rows.Close()
 
+	// Create a channel to synchronize the goroutines
+	ch := make(chan struct{})
+
+	// Keep track of the number of rows returned by the query
+	count := 0
+
+	// Concurrently update each wiki's description
 	for rows.Next() {
 		var (
 			id    int
@@ -228,23 +244,41 @@ func (handler *WikiHandlerImpl) UpdateDesc() {
 			continue
 		}
 
+		count++
+
 		go func(id int, topic string) {
-			resp, err := http.Get(fmt.Sprintf("https://en.wikipedia.org/wiki/%s", topic))
+			defer func() {
+				// Signal the channel when the goroutine completes
+				ch <- struct{}{}
+			}()
+
+			// Connect to the database
+			db, err := database.ConnectDB(handler.cfg)
+			if err != nil {
+				log.Printf("failed to connect to database: %v", err)
+				return
+			}
+			defer db.Close()
+
+			// Fetch the Wikipedia page for the topic
+			resp, err := http.Get(fmt.Sprintf("https://id.wikipedia.org/wiki/%s", topic))
 			if err != nil {
 				log.Printf("failed to fetch %s: %v", topic, err)
 				return
 			}
 			defer resp.Body.Close()
 
+			// Parse the HTML with goquery
 			doc, err := goquery.NewDocumentFromReader(resp.Body)
 			if err != nil {
 				log.Printf("failed to parse HTML: %v", err)
 				return
 			}
 
-			// get the first paragraph of the page
+			// Get the first paragraph of the page
 			firstParagraph := doc.Find("div#mw-content-text p").First().Text()
 
+			// Update the wiki's description and updated_at timestamp in the database
 			stmt, err := db.Prepare(`
                 UPDATE wikis
                 SET description = $1, updated_at = $2
@@ -258,11 +292,16 @@ func (handler *WikiHandlerImpl) UpdateDesc() {
 
 			_, err = stmt.Exec(firstParagraph, time.Now(), id)
 			if err != nil {
-				log.Printf("failed to update wiki: %v", err)
+				log.Printf("failed to execute statement: %v", err)
 				return
 			}
-
-			log.Printf("updated wiki %d with description: %s", id, firstParagraph)
 		}(id, topic)
 	}
+
+	// Wait for all the goroutines to complete
+	for i := 0; i < count; i++ {
+		<-ch
+	}
+
+	return nil
 }
