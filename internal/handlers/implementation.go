@@ -197,8 +197,6 @@ func (handler *WikiHandlerImpl) StartWorker() error {
 
 	// Wait indefinitely
 	select {}
-
-	return nil
 }
 
 func (handler *WikiHandlerImpl) UpdateDescWorker() error {
