@@ -24,12 +24,14 @@ func NewWikiHandlerImpl(cfg *models.Config) *WikiHandlerImpl {
 }
 
 func (handler *WikiHandlerImpl) AddTopic() error {
+	// connect ke DB
 	db, err := database.ConnectDB(handler.cfg)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
+	// Meminta USER untk memasukkan topik
 	prompt := promptui.Prompt{
 		Label: "Topic",
 	}
@@ -38,8 +40,10 @@ func (handler *WikiHandlerImpl) AddTopic() error {
 		return err
 	}
 
+	// untk Mendapatkan waktu saat ini
 	now := time.Now()
 
+	// Menyiapkan statement SQL untuk memasukkan data baru ke dalam tabel wikis
 	stmt, err := db.Prepare(`
 	       INSERT INTO wikis(topic, created_at, updated_at)
 	       VALUES($1, $2, $3)
@@ -50,24 +54,27 @@ func (handler *WikiHandlerImpl) AddTopic() error {
 	}
 	defer stmt.Close()
 
+	// Mengeksekusi statement SQL dan mengambil ID dari data baru
 	var id int
 	err = stmt.QueryRow(topic, now, now).Scan(&id)
 	if err != nil {
 		return err
 	}
 
+	// Mencetak pesan yang menunjukkan bahwa topik telah berhasil ditambahkan
 	fmt.Printf("Added topic with id %d\n", id)
 	return nil
 }
 
 func (handler *WikiHandlerImpl) ScrapeIslandByAreaForTopics() error {
+	// connect ke DB
 	db, err := database.ConnectDB(handler.cfg)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	// Scrape data from Wikipedia
+	// Scrape data dr Wikipedia
 	url := "https://en.wikipedia.org/wiki/List_of_islands_by_area"
 	resp, err := http.Get(url)
 	if err != nil {
@@ -75,21 +82,23 @@ func (handler *WikiHandlerImpl) ScrapeIslandByAreaForTopics() error {
 	}
 	defer resp.Body.Close()
 
+	// Parsing HTML dari response
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
 		return err
 	}
 
-	// Extract island names from the table
+	// Mengekstrak nama pulau dari tabel di halaman Wikipedia
 	var islands []string
 	doc.Find("#mw-content-text > div.mw-parser-output > table > tbody > tr > td:nth-child(2) > a").Each(func(i int, s *goquery.Selection) {
 		island := s.Text()
 		islands = append(islands, island)
 	})
 
-	// Insert islands into database
+	// untk Mendapatkan waktu saat ini
 	now := time.Now()
 
+	// Menyiapkan statement SQL untuk memasukkan data baru ke dalam tabel wikis
 	stmt, err := db.Prepare(`
 	       INSERT INTO wikis(topic, created_at, updated_at)
 	       VALUES($1, $2, $3)
@@ -100,6 +109,7 @@ func (handler *WikiHandlerImpl) ScrapeIslandByAreaForTopics() error {
 	}
 	defer stmt.Close()
 
+	// Melakukan loop untuk memasukkan setiap data pulau ke dalam tabel wikis
 	for _, island := range islands {
 		_, err = stmt.Exec(island, now, now)
 		if err != nil {
@@ -107,31 +117,34 @@ func (handler *WikiHandlerImpl) ScrapeIslandByAreaForTopics() error {
 		}
 	}
 
+	// Mencetak pesan yang menunjukkan bahwa topik islands telah berhasil ditambahkan
 	fmt.Printf("Added %d islands\n", len(islands))
 	return nil
 }
 
 func (handler *WikiHandlerImpl) AutoGenerateTopics() error {
+	// connect ke DB
 	db, err := database.ConnectDB(handler.cfg)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	// Open the CSV file
+	// Membuka file CSV yang berisi topik-topik yang akan digenerate
 	file, err := os.Open("internal/handlers/topics.csv")
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	// Parse the CSV file
+	// Membaca isi file CSV menggunakan package csv
 	reader := csv.NewReader(file)
 	records, err := reader.ReadAll()
 	if err != nil {
 		return err
 	}
 
+	// Menyiapkan statement SQL untuk memasukkan data baru ke dalam tabel wikis
 	stmt, err := db.Prepare(`
         INSERT INTO wikis(topic, created_at, updated_at)
         VALUES($1, $2, $3)
@@ -142,8 +155,10 @@ func (handler *WikiHandlerImpl) AutoGenerateTopics() error {
 	}
 	defer stmt.Close()
 
-	// Loop through the records and insert each topic into the database
+	// untk Mendapatkan waktu saat ini
 	now := time.Now()
+
+	// Melakukan generate topik berdasarkan isi file CSV
 	for _, record := range records {
 		topic := record[0]
 		var id int
@@ -152,6 +167,7 @@ func (handler *WikiHandlerImpl) AutoGenerateTopics() error {
 			log.Printf("Failed to insert topic %s: %v", topic, err)
 			continue
 		}
+		// Mencetak pesan yang menunjukkan bahwa topik telah berhasil ditambahkan
 		fmt.Printf("Added topic %s with id %d\n", topic, id)
 	}
 
@@ -159,12 +175,14 @@ func (handler *WikiHandlerImpl) AutoGenerateTopics() error {
 }
 
 func (handler *WikiHandlerImpl) UpdateTopic() error {
+	// connect ke DB
 	db, err := database.ConnectDB(handler.cfg)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
+	// Meminta USER untk memasukkan ID topik yg akan di ubh
 	prompt := promptui.Prompt{
 		Label: "Topic ID",
 	}
@@ -173,6 +191,7 @@ func (handler *WikiHandlerImpl) UpdateTopic() error {
 		return err
 	}
 
+	// Meminta USER untk memasukkan topik baru
 	prompt = promptui.Prompt{
 		Label: "New Topic Name",
 	}
@@ -181,8 +200,10 @@ func (handler *WikiHandlerImpl) UpdateTopic() error {
 		return err
 	}
 
+	// untk Mendapatkan waktu saat ini
 	now := time.Now()
 
+	// Menyiapkan statement SQL untuk mengupdate data yang sudah di tentukan sebelumnya ke dalam tabel wikis
 	stmt, err := db.Prepare(`
         UPDATE wikis
         SET topic = $1, updated_at = $2
@@ -193,27 +214,32 @@ func (handler *WikiHandlerImpl) UpdateTopic() error {
 	}
 	defer stmt.Close()
 
+	// Eksekusi statement SQL untuk mengupdate topik di tabel wikis
 	res, err := stmt.Exec(newTopic, now, topicID)
 	if err != nil {
 		return err
 	}
 
+	// Mengambil jumlah baris yang terupdate
 	count, err := res.RowsAffected()
 	if err != nil {
 		return err
 	}
 
+	// Mencetak pesan yang menunjukkan bahwa topik telah berhasil di update
 	fmt.Printf("Updated %d topic(s)\n", count)
 	return nil
 }
 
 func (handler *WikiHandlerImpl) DeleteTopic() error {
+	// connect ke DB
 	db, err := database.ConnectDB(handler.cfg)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
+	// Meminta USER untk memasukkan ID topik yg akan di hapus
 	prompt := promptui.Prompt{
 		Label: "Topic ID",
 	}
@@ -222,6 +248,7 @@ func (handler *WikiHandlerImpl) DeleteTopic() error {
 		return err
 	}
 
+	// Menyiapkan statement SQL untuk mendelete data yang sudah di tentukan sebelumnya yang ada di dalam tabel wikis
 	stmt, err := db.Prepare(`
     DELETE FROM wikis
     WHERE id = $1
@@ -231,27 +258,32 @@ func (handler *WikiHandlerImpl) DeleteTopic() error {
 	}
 	defer stmt.Close()
 
+	// Eksekusi statement SQL untuk mendelete topik di tabel wikis
 	res, err := stmt.Exec(topicID)
 	if err != nil {
 		return err
 	}
 
+	// Mengambil jumlah baris yang terdelete
 	count, err := res.RowsAffected()
 	if err != nil {
 		return err
 	}
 
+	// Mencetak pesan yang menunjukkan bahwa topik telah berhasil di delete
 	fmt.Printf("Deleted %d topic(s)\n", count)
 	return nil
 }
 
 func (handler *WikiHandlerImpl) GetWikis() error {
+	// connect ke DB
 	db, err := database.ConnectDB(handler.cfg)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
+	// Mengeksekusi query SQL untuk mengambil semua baris dari tabel wikis
 	rows, err := db.Query(`
     SELECT id, topic, description, created_at, updated_at
     FROM wikis
@@ -261,6 +293,7 @@ func (handler *WikiHandlerImpl) GetWikis() error {
 	}
 	defer rows.Close()
 
+	// Mengambil setiap baris hasil query SQL dan memasukkannya ke dalam objek models.Wiki
 	for rows.Next() {
 		var wiki models.Wiki
 		err := rows.Scan(&wiki.ID, &wiki.Topic, &wiki.Description, &wiki.CreatedAt, &wiki.UpdatedAt)
@@ -268,6 +301,7 @@ func (handler *WikiHandlerImpl) GetWikis() error {
 			return err
 		}
 
+		// Mencetak informasi dari setiap objek models.Wiki
 		fmt.Printf("ID: %d\n", wiki.ID)
 		fmt.Printf("Topic: %s\n", wiki.Topic)
 		fmt.Printf("Description: %s\n", wiki.Description)
@@ -280,22 +314,22 @@ func (handler *WikiHandlerImpl) GetWikis() error {
 }
 
 func (handler *WikiHandlerImpl) StartWorker() error {
-	// Create a new scheduler
+	// Membuat sebuah scheduler baru
 	s := gocron.NewScheduler(time.UTC)
 
-	// Schedule the job to run every minute
+	// Menjadwalkan pekerjaan untuk dijalankan setiap menit
 	_, err := s.Every(1).Minute().Do(handler.AutoGenerateDescWorker)
 	if err != nil {
 		return err
 	}
 
-	// Start the scheduler in the background
+	// Memulai scheduler di background
 	s.StartAsync()
 
-	// Wait for the scheduler to stop
+	// Menunggu scheduler berhenti
 	defer s.Stop()
 
-	// Wait indefinitely
+	// Mengeksekusi pekerjaan setiap menit dan mencetak pesan "DONE" jika semua desc sudah di isi
 	select {
 	case <-time.After(time.Minute):
 		log.Println("DONE")
@@ -305,14 +339,14 @@ func (handler *WikiHandlerImpl) StartWorker() error {
 }
 
 func (handler *WikiHandlerImpl) AutoGenerateDescWorker() error {
-	// Connect to the database
+	// connect ke DB
 	db, err := database.ConnectDB(handler.cfg)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	// Query all wikis that have a null or empty description
+	// Query semua wikis yang memiliki deskripsi null atau kosong
 	rows, err := db.Query(`
         SELECT id, topic
         FROM wikis
@@ -323,13 +357,13 @@ func (handler *WikiHandlerImpl) AutoGenerateDescWorker() error {
 	}
 	defer rows.Close()
 
-	// Create a channel to synchronize the goroutines
+	// Buat channel untuk sinkronisasi goroutine
 	ch := make(chan struct{})
 
-	// Keep track of the number of rows returned by the query
+	// Hitung jumlah baris yang dikembalikan oleh query
 	count := 0
 
-	// Concurrently update each wiki's description
+	// Loop melalui semua baris yang dikembalikan oleh query
 	for rows.Next() {
 		var wiki models.Wiki
 		err := rows.Scan(&wiki.ID, &wiki.Topic)
@@ -340,13 +374,14 @@ func (handler *WikiHandlerImpl) AutoGenerateDescWorker() error {
 
 		count++
 
+		// Goroutine untuk memperbarui deskripsi wiki
 		go func(id int, topic string) {
 			defer func() {
-				// Signal the channel when the goroutine completes
+				// Signal channel ketika goroutine selesai
 				ch <- struct{}{}
 			}()
 
-			// Connect to the database
+			// Connect ke DB
 			db, err := database.ConnectDB(handler.cfg)
 			if err != nil {
 				log.Printf("failed to connect to database: %v", err)
@@ -354,7 +389,7 @@ func (handler *WikiHandlerImpl) AutoGenerateDescWorker() error {
 			}
 			defer db.Close()
 
-			// Fetch the Wikipedia page for the topic
+			// Ambil halaman Wikipedia untuk topik
 			resp, err := http.Get(fmt.Sprintf("https://id.wikipedia.org/wiki/%s", topic))
 			if err != nil {
 				log.Printf("failed to fetch %s: %v", topic, err)
@@ -362,17 +397,17 @@ func (handler *WikiHandlerImpl) AutoGenerateDescWorker() error {
 			}
 			defer resp.Body.Close()
 
-			// Parse the HTML with goquery
+			// Parse HTML dengan goquery
 			doc, err := goquery.NewDocumentFromReader(resp.Body)
 			if err != nil {
 				log.Printf("failed to parse HTML: %v", err)
 				return
 			}
 
-			// Get the first paragraph of the page
+			// Dapatkan paragraf pertama halaman
 			firstParagraph := doc.Find("div#mw-content-text p").First().Text()
 
-			// Update the wiki's description and updated_at timestamp in the database
+			// Perbarui deskripsi dan timestamp updated_at di database
 			stmt, err := db.Prepare(`
                 UPDATE wikis
                 SET description = $1, updated_at = $2
@@ -395,7 +430,7 @@ func (handler *WikiHandlerImpl) AutoGenerateDescWorker() error {
 		}(wiki.ID, wiki.Topic)
 	}
 
-	// Wait for all the goroutines to complete
+	// Tunggu semua goroutine selesai
 	for i := 0; i < count; i++ {
 		<-ch
 	}
