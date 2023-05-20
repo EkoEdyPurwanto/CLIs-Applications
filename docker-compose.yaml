@@ -1,0 +1,25 @@
+version: '3.8'
+services:
+  app:
+    build:
+      context: .
+      target: app
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=CLI_Wikis
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready", "-U", "postgres", "-d", "CLI_Wikis"]
+      interval: 5s
+      timeout: 10s
+      retries: 10

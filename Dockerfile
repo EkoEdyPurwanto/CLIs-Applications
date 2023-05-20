@@ -17,13 +17,14 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app ./cmd/main.go
 
 ### Final Image Stage ###
-FROM alpine:3.16
+FROM alpine:3.16 AS app
 
 # Set the working directory inside the container
 WORKDIR /app
 
 # Copy only the necessary files from the build stage
 COPY --from=build /app/app .
+COPY --from=build /app/internal/database/migrations/ ./internal/database/migrations/
 
 # Remove any unnecessary tools or dependencies from the final stage
 # (You can customize this based on your application's requirements)
