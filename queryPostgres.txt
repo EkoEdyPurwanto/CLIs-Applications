@@ -8,6 +8,7 @@ CREATE TABLE wikis (
 
 
 
+// for generate topics manually
 INSERT INTO wikis (topic, created_at, updated_at)
 VALUES
 ('merah', NOW(), NOW()),
