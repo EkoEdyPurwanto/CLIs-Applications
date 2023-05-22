@@ -11,17 +11,15 @@ import (
 	"sync"
 )
 
-var (
-	db   *sql.DB
-	once sync.Once
-)
-
 func GetDBInstance(cfg *models.Config) (*sql.DB, error) {
 	var err error
-	once.Do(func() {
-		db, err = ConnectDB(cfg)
+	var dbInstance *sql.DB
+	var onceInstance sync.Once
+
+	onceInstance.Do(func() {
+		dbInstance, err = ConnectDB(cfg)
 	})
-	return db, err
+	return dbInstance, err
 }
 
 func ConnectDB(cfg *models.Config) (*sql.DB, error) {
