@@ -17,7 +17,7 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=CLI_Wikis
+      - POSTGRES_DB=cli_wikis
     healthcheck:
       test: ["CMD-SHELL", "pg_isready", "-U", "postgres", "-d", "CLI_Wikis"]
       interval: 5s

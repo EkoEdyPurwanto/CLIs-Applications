@@ -16,8 +16,8 @@ import (
 var cfg = &models.Config{
 	DBDriver: "postgres",
 	DBUser:   "postgres",
-	DBPass:   "1903",
-	DBName:   "CLI_Wikis",
+	DBPass:   "postgres",
+	DBName:   "cli_wikis",
 	DBHost:   "localhost",
 	DBPort:   5432,
 }
