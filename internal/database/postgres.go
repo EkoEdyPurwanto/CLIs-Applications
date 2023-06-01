@@ -48,7 +48,7 @@ func Migrate(db *sql.DB) error {
 
 	m, err := migrate.NewWithDatabaseInstance(
 		"file://internal/database/migrations",
-		"postgres", driver)
+		"cli_wikis", driver)
 	if err != nil {
 		return err
 	}
