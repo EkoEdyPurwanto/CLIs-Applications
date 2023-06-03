@@ -15,11 +15,11 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=cli_wikis
+      - POSTGRES_USER=eep
+      - POSTGRES_PASSWORD=1903
+      - POSTGRES_DB=mydatabase
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready", "-U", "postgres", "-d", "CLI_Wikis"]
+      test: ["CMD-SHELL", "pg_isready", "-U", "postgres", "-d", "mydatabase"]
       interval: 5s
       timeout: 10s
       retries: 10
