@@ -29,5 +29,5 @@ COPY --from=build /app/internal/database/migrations/ ./internal/database/migrati
 # Remove any unnecessary tools or dependencies from the final stage
 # (You can customize this based on your application's requirements)
 
-# Start the Go application
-ENTRYPOINT ["./app"]
+# Set the command to run when the container starts
+CMD ["./app", "add"]
