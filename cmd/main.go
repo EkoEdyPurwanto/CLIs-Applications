@@ -17,7 +17,7 @@ var cfg = &models.Config{
 	DBDriver: "postgres",
 	DBUser:   "eep",
 	DBPass:   "1903",
-	DBName:   "mydatabase",
+	DBName:   "ClI_App",
 	DBHost:   "localhost",
 	DBPort:   5432,
 }
